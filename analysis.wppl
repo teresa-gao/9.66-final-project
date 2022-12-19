@@ -1,0 +1,45 @@
+// run on http://webppl.org
+
+var n = 7 // number of artworks
+
+var meanRatingsForArtByAI    = [5.06, 4.18, 4.53, 4.88, 3.94, 5.65, 4.59]
+var meanRatingsForArtByHuman = [4.88, 4.17, 4.67, 4.67, 4.46, 5.04, 4.63]
+
+var stdRatingsForArtByAI     = [1.09, 1.63, 1.59, 1.17, 1.56, 1.58, 1.23]
+var stdRatingsForArtByHuman  = [1.39, 1.71, 1.46, 1.49, 1.77, 1.78, 1.56]
+
+var observations             = [5.00, 4.69, 4.83, 5.07, 4.34, 5.10, 4.93]
+
+var generateArtistSequenceFrom = function(artistsSoFar) {
+  var artists = artistsSoFar.concat(flip() ? "AI" : "human")
+  if (artists.length == n) {
+    return artists
+  } else {
+    return generateArtistSequenceFrom(artists)
+  }
+}
+
+var model = function() {
+  var artistSequence = generateArtistSequenceFrom([])
+
+  var callAllObserves = function(artworkNum) {
+    if (artworkNum >= observations.length) {
+      return
+    }
+
+    var artist = artistSequence.at(artworkNum)
+    var observation = observations.at(artworkNum)
+    if (artist == "AI") {
+      observe(Gaussian({mu: meanRatingsForArtByAI[artworkNum], sigma: stdRatingsForArtByAI[artworkNum]}), observation)
+    } else {
+      observe(Gaussian({mu: meanRatingsForArtByHuman[artworkNum], sigma: stdRatingsForArtByHuman[artworkNum]}), observation)
+    }
+    return callAllObserves(artworkNum + 1)
+  }
+  callAllObserves(0)
+
+  artistSequence
+}
+
+var dist = Infer({method:"MCMC", samples:50000}, model)
+viz.marginals(dist)
